@@ -3,331 +3,292 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Analyzer & Job Matcher</title>
+    <title>AI Resume Analyzer & Job Matcher</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary-color: #10b981;
+            --text-dark: #1f2937;
+            --text-light: #6b7280;
+            --bg-light: #f9fafb;
+            --border-color: #e5e7eb;
         }
         
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.6;
         }
         
         .container {
             max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
+            margin: 2rem auto;
+            padding: 0 1rem;
         }
         
         .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            color: white;
-            padding: 30px;
             text-align: center;
+            margin-bottom: 3rem;
         }
         
         .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
         }
         
         .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
+            font-size: 1.125rem;
+            color: var(--text-light);
         }
         
-        .upload-section {
-            padding: 40px;
-            text-align: center;
+        .card {
+            background: white;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+            padding: 2rem;
         }
         
-        .upload-form {
-            background: #f8f9fa;
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-        }
+        .upload-form { margin-bottom: 2rem; }
         
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-            margin: 20px 0;
-        }
-        
-        .file-input {
-            position: absolute;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-        
-        .file-input-button {
-            display: inline-block;
-            padding: 15px 30px;
-            background: #3498db;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 16px;
-            border: none;
-        }
-        
-        .file-input-button:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-        }
-        
-        .form-group {
-            margin: 20px 0;
-            text-align: left;
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            align-items: end;
         }
         
         .form-group label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
         }
         
         .form-group input, .form-group select {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 1rem;
         }
         
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: #3498db;
+        .file-drop-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            grid-column: 1 / -1;
         }
+        .file-drop-area.dragover {
+            background-color: #f0fdf4;
+            border-color: var(--secondary-color);
+        }
+        
+        .file-drop-area span { color: var(--primary-color); font-weight: 500; }
+        #fileName { margin-top: 1rem; color: var(--text-light); font-style: italic; }
         
         .analyze-btn {
-            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 15px 40px;
-            font-size: 18px;
-            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
             cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 20px;
+            width: 100%;
+            grid-column: 1 / -1;
+            transition: background-color 0.2s;
         }
+        .analyze-btn:hover:not(:disabled) { background-color: var(--primary-hover); }
+        .analyze-btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
         
-        .analyze-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
-        }
-        
-        .analyze-btn:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
-        }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-        
+        .loading { display: none; text-align: center; padding: 3rem; }
         .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
+            width: 48px; height: 48px;
+            border: 5px solid var(--border-color);
+            border-bottom-color: var(--primary-color);
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            display: inline-block;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading p { margin-top: 1rem; font-weight: 500; }
+        
+        .results { display: none; }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
         }
         
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .results h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
         }
         
-        .results {
-            display: none;
-            padding: 40px;
-        }
-        
-        .results-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-        
-        .results-section h3 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-        }
+        .profile-card { padding: 1.5rem; }
+        .profile-item { margin-bottom: 1.5rem; }
+        .profile-item h4 { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .profile-item p { font-size: 0.9rem; color: var(--text-light); }
         
         .job-card {
-            background: white;
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border-left: 4px solid #3498db;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: box-shadow 0.2s;
         }
+        .job-card:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); }
         
-        .job-card h4 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-        
-        .job-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin: 10px 0;
-            font-size: 14px;
-            color: #666;
-        }
-        
+        .job-header { display: flex; justify-content: space-between; align-items: start; }
+        .job-header h4 { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.25rem; }
         .relevance-score {
-            background: #27ae60;
+            background-color: var(--secondary-color);
             color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 99px;
+            font-size: 0.875rem;
+            font-weight: 600;
         }
+        
+        .job-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0.5rem 0 1rem; color: var(--text-light); }
+        .job-description { margin-bottom: 1rem; }
+        .job-link { color: var(--primary-color); text-decoration: none; font-weight: 500; }
+        
+        .error { display: none; background: #fee2e2; color: #b91c1c; padding: 1rem; border-radius: 0.5rem; margin: 1.5rem 0; }
         
         .download-btn {
-            background: #e74c3c;
+            background-color: #1f2937;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
             cursor: pointer;
-            margin-top: 20px;
+            margin-top: 1rem;
+            transition: background-color 0.2s;
         }
         
-        .error {
-            background: #e74c3c;
-            color: white;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 20px 0;
-            display: none;
+        @media (max-width: 992px) {
+            .results-grid { grid-template-columns: 1fr; }
         }
-        
         @media (max-width: 768px) {
-            .container {
-                margin: 10px;
-            }
-            
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .upload-section, .results {
-                padding: 20px;
-            }
+            .form-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🎯 Resume Analyzer & Job Matcher</h1>
-            <p>Upload your resume and find the perfect job matches powered by AI</p>
-        </div>
-        
-        <div class="upload-section">
-            <div class="upload-form">
-                <h2>Upload Your Resume</h2>
-                <form id="uploadForm" enctype="multipart/form-data">
-                    <div class="file-input-wrapper">
-                        <input type="file" id="resumeFile" name="resume" class="file-input" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" required>
-                        <button type="button" class="file-input-button">Choose Resume File</button>
-                    </div>
-                    <div id="fileName" style="margin-top: 10px; color: #666;"></div>
-                    
+        <header class="header">
+            <h1>AI Resume Analyzer & Job Matcher</h1>
+            <p>Upload your resume to get a detailed analysis and find relevant job opportunities.</p>
+        </header>
+
+        <div class="card upload-form">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="file-drop-area" id="dropArea">
+                    <input type="file" id="resumeFile" name="resume" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" required hidden>
+                    <p>Drag & drop your resume here, or <span id="browseLink">browse to upload</span>.</p>
+                    <div id="fileName"></div>
+                </div>
+                <div class="form-grid" style="margin-top: 1.5rem;">
                     <div class="form-group">
-                        <label for="location">Preferred Location (optional):</label>
-                        <input type="text" id="location" name="location" placeholder="e.g., New York, Remote, San Francisco">
+                        <label for="location">Preferred Location (optional)</label>
+                        <input type="text" id="location" name="location" placeholder="e.g., New York, Remote">
                     </div>
-                    
                     <div class="form-group">
-                        <label for="jobsPerPlatform">Jobs per Platform:</label>
+                        <label for="jobsPerPlatform">Jobs to Find</label>
                         <select id="jobsPerPlatform" name="jobs_per_platform">
-                            <option value="5">5 jobs per platform</option>
-                            <option value="10">10 jobs per platform</option>
-                            <option value="15">15 jobs per platform</option>
+                            <option value="10">10 Jobs</option>
+                            <option value="20">20 Jobs</option>
+                            <option value="30">30 Jobs</option>
                         </select>
                     </div>
-                    
-                    <button type="submit" class="analyze-btn" id="analyzeBtn">
-                        🔍 Analyze Resume & Find Jobs
-                    </button>
-                </form>
-            </div>
-            
-            <div class="error" id="errorMessage"></div>
-            
-            <div class="loading" id="loadingSection">
-                <div class="spinner"></div>
-                <p>Analyzing your resume and finding matching jobs...</p>
-                <p style="font-size: 14px; color: #666; margin-top: 10px;">This may take 30-60 seconds</p>
-            </div>
+                    <button type="submit" class="analyze-btn" id="analyzeBtn">Analyze & Find Jobs</button>
+                </div>
+            </form>
         </div>
         
-        <div class="results" id="resultsSection">
-            <div class="results-section">
-                <h3>📊 Your Profile Analysis</h3>
-                <div id="profileAnalysis"></div>
+        <div id="errorMessage" class="error"></div>
+        <div id="loadingSection" class="loading"><div class="spinner"></div><p>Analyzing your profile and searching for jobs... this can take up to a minute.</p></div>
+        
+        <div id="resultsSection" class="results">
+            <div class="results-grid">
+                <div class="profile-analysis">
+                    <h3>Profile Analysis</h3>
+                    <div class="card profile-card" id="profileAnalysis"></div>
+                    <button class="download-btn" id="downloadBtn">Download Full Report</button>
+                </div>
+                <div class="job-matches">
+                    <h3 id="jobMatchesTitle">Top Job Matches</h3>
+                    <div id="jobMatches"></div>
+                </div>
             </div>
-            
-            <div class="results-section">
-                <h3>💼 Top Job Matches</h3>
-                <div id="jobMatches"></div>
-            </div>
-            
-            <button class="download-btn" id="downloadBtn">📄 Download Full Report</button>
         </div>
     </div>
 
     <script>
         let currentReport = '';
+        const form = document.getElementById('uploadForm');
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('resumeFile');
+        const browseLink = document.getElementById('browseLink');
+        const fileNameDisplay = document.getElementById('fileName');
         
-        // File input handling
-        document.getElementById('resumeFile').addEventListener('change', function(e) {
-            const fileName = e.target.files[0] ? e.target.files[0].name : '';
-            document.getElementById('fileName').textContent = fileName ? `Selected: ${fileName}` : '';
+        // Drag and Drop functionality
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, e => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
         });
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+        });
+
+        dropArea.addEventListener('drop', e => {
+            fileInput.files = e.dataTransfer.files;
+            updateFileName();
+        }, false);
         
-        // Form submission
-        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+        dropArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', updateFileName);
+
+        function updateFileName() {
+            fileNameDisplay.textContent = fileInput.files.length > 0 ? `Selected: ${fileInput.files[0].name}` : '';
+        }
+
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const formData = new FormData();
-            const fileInput = document.getElementById('resumeFile');
-            const locationInput = document.getElementById('location');
-            const jobsPerPlatformInput = document.getElementById('jobsPerPlatform');
-            
             if (!fileInput.files[0]) {
-                showError('Please select a resume file');
+                showError('Please select a resume file.');
                 return;
             }
             
             formData.append('resume', fileInput.files[0]);
-            formData.append('location', locationInput.value);
-            formData.append('jobs_per_platform', jobsPerPlatformInput.value);
+            formData.append('location', document.getElementById('location').value);
+            formData.append('jobs_per_platform', document.getElementById('jobsPerPlatform').value);
             
-            // Show loading
+            // UI updates for loading state
             document.getElementById('loadingSection').style.display = 'block';
             document.getElementById('analyzeBtn').disabled = true;
             document.getElementById('resultsSection').style.display = 'none';
@@ -342,7 +303,7 @@
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Analysis failed');
+                    throw new Error(data.error || 'An unknown error occurred during analysis.');
                 }
                 
                 displayResults(data);
@@ -356,59 +317,46 @@
         });
         
         function displayResults(data) {
-            const analysis = data.analysis;
-            const jobs = data.matched_jobs;
+            const { analysis, matched_jobs } = data;
             currentReport = data.report;
             
             // Display profile analysis
             const profileHtml = `
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                    <div>
-                        <h4>🎯 Skills</h4>
-                        <p>${analysis.skills.join(', ')}</p>
-                    </div>
-                    <div>
-                        <h4>💼 Experience</h4>
-                        <p>${analysis.experience_years} years</p>
-                    </div>
-                    <div>
-                        <h4>🎓 Education</h4>
-                        <p>${analysis.education.join(', ') || 'Not specified'}</p>
-                    </div>
-                    <div>
-                        <h4>📋 Summary</h4>
-                        <p>${analysis.summary}</p>
-                    </div>
-                </div>
+                <div class="profile-item"><h4>Professional Summary</h4><p>${analysis.summary || 'Not found'}</p></div>
+                <div class="profile-item"><h4>Key Skills</h4><p>${analysis.skills.join(', ') || 'Not found'}</p></div>
+                <div class="profile-item"><h4>Experience</h4><p>${analysis.experience_years} years</p></div>
+                <div class="profile-item"><h4>Education</h4><p>${analysis.education.join(', ') || 'Not found'}</p></div>
             `;
             document.getElementById('profileAnalysis').innerHTML = profileHtml;
             
             // Display job matches
-            const jobsHtml = jobs.map(job => `
+            document.getElementById('jobMatchesTitle').textContent = `Top Job Matches (${matched_jobs.length} found)`;
+            const jobsHtml = matched_jobs.length > 0 ? matched_jobs.map(job => `
                 <div class="job-card">
-                    <h4>${job.title}</h4>
+                    <div class="job-header">
+                        <h4>${job.title}</h4>
+                        <div class="relevance-score">${job.relevance_score.toFixed(0)}%</div>
+                    </div>
                     <div class="job-meta">
                         <span>🏢 ${job.company}</span>
                         <span>📍 ${job.location}</span>  
-                        <span>🌍 ${job.platform}</span>
-                        <span class="relevance-score">${job.relevance_score.toFixed(1)}% Match</span>
+                        <span>🌐 ${job.platform}</span>
                     </div>
                     ${job.salary ? `<p><strong>💰 Salary:</strong> ${job.salary}</p>` : ''}
-                    <p><strong>Description:</strong> ${job.description}</p>
-                    <a href="${job.url}" target="_blank" style="color: #3498db; text-decoration: none;">View Job →</a>
+                    <p class="job-description">${job.description}</p>
+                    <a href="${job.url}" target="_blank" class="job-link">View Original Job Post →</a>
                 </div>
-            `).join('');
+            `).join('') : '<p>No relevant jobs found. Try broadening your location or checking your resume content.</p>';
             
-            document.getElementById('jobMatches').innerHTML = jobsHtml || '<p>No jobs found matching your profile.</p>';
+            document.getElementById('jobMatches').innerHTML = jobsHtml;
             
-            // Show results
             document.getElementById('resultsSection').style.display = 'block';
             document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
         }
         
         function showError(message) {
             const errorElement = document.getElementById('errorMessage');
-            errorElement.textContent = message;
+            errorElement.textContent = `Error: ${message}`;
             errorElement.style.display = 'block';
         }
         
@@ -419,9 +367,7 @@
             try {
                 const response = await fetch('/api/download-report', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ report: currentReport })
                 });
                 
@@ -429,15 +375,18 @@
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
+                    a.style.display = 'none';
                     a.href = url;
-                    a.download = `resume_analysis_${new Date().getTime()}.txt`;
+                    a.download = `Resume-Analysis-Report.txt`;
                     document.body.appendChild(a);
                     a.click();
-                    document.body.removeChild(a);
                     window.URL.revokeObjectURL(url);
+                    a.remove();
+                } else {
+                     throw new Error('Server failed to generate the report file.');
                 }
             } catch (error) {
-                showError('Failed to download report');
+                showError(`Failed to download report: ${error.message}`);
             }
         });
     </script>

@@ -259,89 +259,60 @@ class ResumeTextExtractor:
             raise ValueError(f"Unsupported file format: {file_extension}")
 
 class JobPlatformScraper:
-    def __init__(self):
+    """Handles searching for jobs on various platforms via API."""
+    def __init__(self, jooble_api_key: Optional[str] = None):
+        self.jooble_api_key = jooble_api_key
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-    
-    def search_indeed(self, keywords: str, location: str = "", limit: int = 10) -> List[JobListing]:
-        """Search jobs from Indeed (Demo implementation)"""
+
+    def search_jooble(self, keywords: str, location: str = "", limit: int = 10) -> List[JobListing]:
+        """Search jobs from Jooble using their API."""
+        if not self.jooble_api_key:
+            logger.warning("Jooble API key not provided. Skipping search.")
+            return []
+
+        jooble_url = "https://jooble.org/api/"
+        headers = {"Content-Type": "application/json"}
+        payload = json.dumps({
+            "keywords": keywords,
+            "location": location,
+            "page": 1,
+            "searchMode": "relevance"
+        })
+
         jobs = []
         try:
-            # Demo job data - replace with actual API integration
-            job_types = ['Software Engineer', 'Data Scientist', 'Product Manager', 'DevOps Engineer', 'UI/UX Designer']
-            companies = ['TechCorp', 'InnovateInc', 'DataSolutions', 'CloudTech', 'StartupXYZ']
+            response = requests.post(f"{jooble_url}{self.jooble_api_key}", headers=headers, data=payload, timeout=20)
+            response.raise_for_status()  # Raise an exception for bad status codes
             
-            for i in range(min(limit, 5)):
-                jobs.append(JobListing(
-                    title=f"{job_types[i % len(job_types)]} - {keywords}",
-                    company=companies[i % len(companies)],
-                    location=location or "Remote",
-                    description=f"Seeking experienced {keywords} professional with strong technical skills and proven track record in software development.",
-                    requirements=f"Required: {keywords}, 3+ years experience, Bachelor's degree",
-                    salary="$60,000 - $90,000",
-                    url=f"https://indeed.com/viewjob?jk=sample{i}",
-                    platform="Indeed",
-                    posted_date="2024-01-15"
-                ))
-        except Exception as e:
-            logger.error(f"Error searching Indeed: {e}")
-        
-        return jobs
-    
-    def search_linkedin(self, keywords: str, location: str = "", limit: int = 10) -> List[JobListing]:
-        """Search jobs from LinkedIn (Demo implementation)"""
-        jobs = []
-        try:
-            job_types = ['Senior Developer', 'Tech Lead', 'Full Stack Engineer', 'Backend Developer', 'Frontend Developer']
-            companies = ['LinkedIn Corp', 'Microsoft', 'Google', 'Amazon', 'Meta']
+            data = response.json()
             
-            for i in range(min(limit, 5)):
+            for item in data.get('jobs', [])[:limit]:
                 jobs.append(JobListing(
-                    title=f"{job_types[i % len(job_types)]} - {keywords}",
-                    company=companies[i % len(companies)],
-                    location=location or "San Francisco, CA",
-                    description=f"Join our team as a {keywords} specialist. Work on cutting-edge projects with top-tier engineers.",
-                    requirements=f"Skills: {keywords}, teamwork, problem-solving, 5+ years experience",
-                    salary="$80,000 - $120,000",
-                    url=f"https://linkedin.com/jobs/view/sample{i}",
-                    platform="LinkedIn",
-                    posted_date="2024-01-10"
+                    title=item.get('title'),
+                    company=item.get('company'),
+                    location=item.get('location'),
+                    description=item.get('snippet', ''),
+                    requirements='', # Jooble API does not provide a separate requirements field
+                    salary=item.get('salary'),
+                    url=item.get('link'),
+                    platform="Jooble",
+                    posted_date=item.get('updated')
                 ))
+            logger.info(f"Successfully found {len(jobs)} jobs on Jooble.")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error searching Jooble: {e}")
         except Exception as e:
-            logger.error(f"Error searching LinkedIn: {e}")
-        
-        return jobs
-    
-    def search_glassdoor(self, keywords: str, location: str = "", limit: int = 10) -> List[JobListing]:
-        """Search jobs from Glassdoor (Demo implementation)"""
-        jobs = []
-        try:
-            job_types = ['Principal Engineer', 'Staff Developer', 'Engineering Manager', 'Solutions Architect', 'Platform Engineer']
-            companies = ['Glassdoor Inc', 'Salesforce', 'Oracle', 'IBM', 'Adobe']
-            
-            for i in range(min(limit, 5)):
-                jobs.append(JobListing(
-                    title=f"{job_types[i % len(job_types)]} - {keywords}",
-                    company=companies[i % len(companies)],
-                    location=location or "New York, NY",
-                    description=f"Exciting opportunity for {keywords} expert to lead innovative projects and mentor junior developers.",
-                    requirements=f"Expertise in {keywords}, leadership skills, 7+ years experience",
-                    salary="$90,000 - $140,000",
-                    url=f"https://glassdoor.com/job-listing/sample{i}",
-                    platform="Glassdoor",
-                    posted_date="2024-01-05"
-                ))
-        except Exception as e:
-            logger.error(f"Error searching Glassdoor: {e}")
+            logger.error(f"An unexpected error occurred during Jooble search: {e}")
         
         return jobs
 
 class ResumeJobMatcher:
-    def __init__(self, groq_api_key: str):
+    def __init__(self, groq_api_key: str, jooble_api_key: str):
         self.groq_client = GroqClient(groq_api_key)
         self.text_extractor = ResumeTextExtractor()
-        self.job_scraper = JobPlatformScraper()
+        self.job_scraper = JobPlatformScraper(jooble_api_key=jooble_api_key)
     
     def analyze_resume_file(self, file_path: str) -> ResumeAnalysis:
         """Extract and analyze resume from file"""
@@ -365,28 +336,20 @@ class ResumeJobMatcher:
         if not search_keywords.strip():
             search_keywords = "software developer"  # Default fallback
         
-        # Search across platforms
-        platforms = [
-            self.job_scraper.search_indeed,
-            self.job_scraper.search_linkedin,
-            self.job_scraper.search_glassdoor
-        ]
-        
-        for platform_search in platforms:
-            try:
-                jobs = platform_search(search_keywords, location, jobs_per_platform)
-                for job in jobs:
-                    relevance_score = self.groq_client.match_job_relevance(
-                        resume_analysis, 
-                        f"{job.title} {job.description} {job.requirements}"
-                    )
-                    
-                    all_jobs.append({
-                        "job": job,
-                        "relevance_score": relevance_score
-                    })
-            except Exception as e:
-                logger.error(f"Error searching platform: {e}")
+        # --- Search Jooble ---
+        try:
+            jooble_jobs = self.job_scraper.search_jooble(search_keywords, location, jobs_per_platform)
+            for job in jooble_jobs:
+                relevance_score = self.groq_client.match_job_relevance(
+                    resume_analysis, 
+                    f"{job.title} {job.description}"
+                )
+                all_jobs.append({"job": job, "relevance_score": relevance_score})
+        except Exception as e:
+            logger.error(f"Error getting jobs from Jooble: {e}")
+
+        # You can add other platform searches here in the future
+        # e.g., linkedin_jobs = self.job_scraper.search_linkedin(...)
         
         # Sort by relevance score
         all_jobs.sort(key=lambda x: x["relevance_score"], reverse=True)
@@ -409,11 +372,14 @@ Certifications: {', '.join(resume_analysis.certifications)}
 === TOP MATCHING JOBS ===
 """
         
-        for i, job_match in enumerate(matched_jobs[:15], 1):
-            job = job_match["job"]
-            score = job_match["relevance_score"]
-            
-            report += f"""
+        if not matched_jobs:
+            report += "No matching jobs were found.\n"
+        else:
+            for i, job_match in enumerate(matched_jobs[:15], 1):
+                job = job_match["job"]
+                score = job_match["relevance_score"]
+                
+                report += f"""
 {i}. {job.title} at {job.company}
    Platform: {job.platform}
    Location: {job.location}
@@ -427,14 +393,18 @@ Certifications: {', '.join(resume_analysis.certifications)}
         report += f"""
 === ANALYSIS SUMMARY ===
 Total Jobs Found: {len(matched_jobs)}
-Top Match Score: {matched_jobs[0]['relevance_score']:.1f}% (if jobs found)
-Average Score: {sum(job['relevance_score'] for job in matched_jobs) / len(matched_jobs):.1f}% (if jobs found)
+"""
+        if matched_jobs:
+            report += f"""Top Match Score: {matched_jobs[0]['relevance_score']:.1f}%
+Average Score: {sum(job['relevance_score'] for job in matched_jobs) / len(matched_jobs):.1f}%
+"""
 
+        report += """
 === RECOMMENDATIONS ===
-1. Focus on roles with 80%+ relevance scores
-2. Consider enhancing skills mentioned in top job requirements
-3. Tailor your resume for specific job applications
-4. Network with professionals in your target companies
+1. Focus on roles with high relevance scores to maximize your chances.
+2. Use the keywords from your analysis to tailor your resume for specific job applications.
+3. For jobs with lower scores, identify the missing skills from the job description and consider upskilling.
+4. Network with professionals in your target companies on platforms like LinkedIn.
 """
         
         return report

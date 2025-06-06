@@ -24,15 +24,21 @@ app.config['UPLOAD_FOLDER'] = '/tmp'  # Use /tmp for temporary files on Render
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize the matcher with environment variable
+# Initialize the matcher with environment variables
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+JOOBLE_API_KEY = os.environ.get('JOOBLE_API_KEY') # New: Get Jooble key
+
 if not GROQ_API_KEY:
     logger.error("GROQ_API_KEY environment variable not set")
+if not JOOBLE_API_KEY:
+    logger.warning("JOOBLE_API_KEY environment variable not set. Job search will be disabled.")
+
 
 matcher = None
 if GROQ_API_KEY:
     try:
-        matcher = ResumeJobMatcher(GROQ_API_KEY)
+        # Pass both keys to the matcher
+        matcher = ResumeJobMatcher(groq_api_key=GROQ_API_KEY, jooble_api_key=JOOBLE_API_KEY)
         logger.info("ResumeJobMatcher initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize ResumeJobMatcher: {e}")
@@ -48,7 +54,8 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "groq_api_configured": GROQ_API_KEY is not None
+        "groq_api_configured": GROQ_API_KEY is not None,
+        "jooble_api_configured": JOOBLE_API_KEY is not None # New
     })
 
 @app.route('/api/analyze', methods=['POST'])
@@ -68,7 +75,7 @@ def analyze_resume():
         
         # Get optional parameters
         location = request.form.get('location', '')
-        jobs_per_platform = int(request.form.get('jobs_per_platform', 5))
+        jobs_per_platform = int(request.form.get('jobs_per_platform', 10)) # Default to 10
         
         # Save uploaded file temporarily
         filename = secure_filename(file.filename)
@@ -161,5 +168,3 @@ def download_report():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
