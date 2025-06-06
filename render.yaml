@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: resume-analyzer
+    env: python
+    buildCommand: |
+      pip install --upgrade pip
+      apt-get update
+      apt-get install -y tesseract-ocr tesseract-ocr-eng
+      pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.9.18"
+    disk:
+      name: resume-analyzer-disk
+      mountPath: /tmp
+      sizeGB: 1
