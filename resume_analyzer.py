@@ -57,7 +57,7 @@ class ResumeAnalysis:
 class GroqClient:
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.base_url = "https://api.groq.com/openai/v1"
+        self.base_url = "https://api.groq.com/openai/v1/chat/completions"
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
