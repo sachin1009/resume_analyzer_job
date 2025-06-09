@@ -57,7 +57,7 @@ class ResumeAnalysis:
 class GroqClient:
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.base_url = "https://api.groq.com/openai/v1/chat/completions"
+        self.base_url = "https://api.groq.com/openai/v1/chat/completions"  # Fixed: removed duplicate
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
@@ -87,7 +87,7 @@ class GroqClient:
         
         try:
             response = requests.post(
-                f"{self.base_url}/chat/completions",
+                self.base_url,  # Fixed: use base_url directly
                 headers=self.headers,
                 json={
                     "model": "mixtral-8x7b-32768",
@@ -160,7 +160,7 @@ class GroqClient:
         
         try:
             response = requests.post(
-                f"{self.base_url}/chat/completions",
+                self.base_url,  # Fixed: use base_url directly
                 headers=self.headers,
                 json={
                     "model": "mixtral-8x7b-32768",
@@ -272,39 +272,62 @@ class JobPlatformScraper:
             logger.warning("Jooble API key not provided. Skipping search.")
             return []
 
-        jooble_url = "https://jooble.org/api/"
+        # Fixed: Correct Jooble API endpoint format
+        jooble_url = f"https://jooble.org/api/{self.jooble_api_key}"
         headers = {"Content-Type": "application/json"}
-        payload = json.dumps({
+        
+        # Fixed: Proper payload structure for Jooble API
+        payload = {
             "keywords": keywords,
             "location": location,
-            "page": 1,
-            "searchMode": "relevance"
-        })
+            "page": "1"  # Jooble expects string, not integer
+        }
 
         jobs = []
         try:
-            response = requests.post(f"{jooble_url}{self.jooble_api_key}", headers=headers, data=payload, timeout=20)
-            response.raise_for_status()  # Raise an exception for bad status codes
+            logger.info(f"Searching Jooble with keywords: '{keywords}', location: '{location}'")
+            response = requests.post(jooble_url, headers=headers, json=payload, timeout=20)
             
-            data = response.json()
+            logger.info(f"Jooble API response status: {response.status_code}")
             
-            for item in data.get('jobs', [])[:limit]:
-                jobs.append(JobListing(
-                    title=item.get('title'),
-                    company=item.get('company'),
-                    location=item.get('location'),
-                    description=item.get('snippet', ''),
-                    requirements='', # Jooble API does not provide a separate requirements field
-                    salary=item.get('salary'),
-                    url=item.get('link'),
-                    platform="Jooble",
-                    posted_date=item.get('updated')
-                ))
-            logger.info(f"Successfully found {len(jobs)} jobs on Jooble.")
+            if response.status_code == 200:
+                data = response.json()
+                job_list = data.get('jobs', [])
+                
+                logger.info(f"Jooble returned {len(job_list)} jobs")
+                
+                for item in job_list[:limit]:
+                    # Handle potential None values
+                    title = item.get('title', 'Unknown Title')
+                    company = item.get('company', 'Unknown Company')
+                    location_str = item.get('location', 'Unknown Location')
+                    snippet = item.get('snippet', '')
+                    salary = item.get('salary', '')
+                    link = item.get('link', '')
+                    updated = item.get('updated', '')
+                    
+                    jobs.append(JobListing(
+                        title=title,
+                        company=company,
+                        location=location_str,
+                        description=snippet,
+                        requirements='',  # Jooble API does not provide a separate requirements field
+                        salary=salary if salary else None,
+                        url=link,
+                        platform="Jooble",
+                        posted_date=updated
+                    ))
+                
+                logger.info(f"Successfully processed {len(jobs)} jobs from Jooble.")
+            else:
+                logger.error(f"Jooble API returned status {response.status_code}: {response.text}")
+                
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error searching Jooble: {e}")
+            logger.error(f"Network error searching Jooble: {e}")
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error from Jooble response: {e}")
         except Exception as e:
-            logger.error(f"An unexpected error occurred during Jooble search: {e}")
+            logger.error(f"Unexpected error during Jooble search: {e}")
         
         return jobs
 
@@ -336,15 +359,20 @@ class ResumeJobMatcher:
         if not search_keywords.strip():
             search_keywords = "software developer"  # Default fallback
         
+        logger.info(f"Using search keywords: '{search_keywords}'")
+        
         # --- Search Jooble ---
         try:
             jooble_jobs = self.job_scraper.search_jooble(search_keywords, location, jobs_per_platform)
+            logger.info(f"Found {len(jooble_jobs)} jobs from Jooble")
+            
             for job in jooble_jobs:
                 relevance_score = self.groq_client.match_job_relevance(
                     resume_analysis, 
                     f"{job.title} {job.description}"
                 )
                 all_jobs.append({"job": job, "relevance_score": relevance_score})
+                
         except Exception as e:
             logger.error(f"Error getting jobs from Jooble: {e}")
 
@@ -353,6 +381,7 @@ class ResumeJobMatcher:
         
         # Sort by relevance score
         all_jobs.sort(key=lambda x: x["relevance_score"], reverse=True)
+        logger.info(f"Total jobs found and scored: {len(all_jobs)}")
         return all_jobs
     
     def generate_report(self, resume_analysis: ResumeAnalysis, matched_jobs: List[Dict]) -> str:
