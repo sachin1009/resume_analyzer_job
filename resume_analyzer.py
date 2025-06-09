@@ -90,7 +90,7 @@ class GroqClient:
                 self.base_url,  # Fixed: use base_url directly
                 headers=self.headers,
                 json={
-                    "model": "mixtral-8x7b-32768",
+                    "model": "deepseek-r1-distill-llama-70b",
                     "messages": [
                         {"role": "system", "content": "You are an expert resume analyzer. Always respond with valid JSON."},
                         {"role": "user", "content": prompt}

@@ -11,7 +11,7 @@ import zipfile
 import io
 
 # Import our resume analyzer classes
-from resume_analyzer import ResumeJobMatcher, ResumeAnalysis
+from resume_analyzer import ResumeJobMatcher, ResumeAnalysis, JobPlatformScraper
 
 app = Flask(__name__)
 CORS(app)
@@ -35,6 +35,8 @@ if not JOOBLE_API_KEY:
 
 
 matcher = None
+job_scraper = None  # New: Standalone job scraper instance
+
 if GROQ_API_KEY:
     try:
         # Pass both keys to the matcher
@@ -42,6 +44,14 @@ if GROQ_API_KEY:
         logger.info("ResumeJobMatcher initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize ResumeJobMatcher: {e}")
+
+# Initialize standalone job scraper for manual search
+if JOOBLE_API_KEY:
+    try:
+        job_scraper = JobPlatformScraper(jooble_api_key=JOOBLE_API_KEY)
+        logger.info("JobPlatformScraper initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize JobPlatformScraper: {e}")
 
 @app.route('/')
 def home():
@@ -139,6 +149,69 @@ def analyze_resume():
         logger.error(f"Error during analysis: {str(e)}")
         return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
 
+@app.route('/api/search-jobs', methods=['POST'])
+def manual_job_search():
+    """New endpoint for manual job search without resume analysis"""
+    if not job_scraper:
+        return jsonify({"error": "Job search service not properly configured"}), 500
+    
+    try:
+        data = request.get_json()
+        
+        # Extract search parameters
+        keywords = data.get('keywords', '').strip()
+        location = data.get('location', '').strip()
+        job_limit = int(data.get('limit', 20))
+        
+        if not keywords:
+            return jsonify({"error": "Keywords are required for job search"}), 400
+        
+        logger.info(f"Manual job search - Keywords: '{keywords}', Location: '{location}', Limit: {job_limit}")
+        
+        # Search for jobs
+        jobs = job_scraper.search_jooble(keywords, location, job_limit)
+        
+        if not jobs:
+            return jsonify({
+                "jobs": [],
+                "total_found": 0,
+                "message": "No jobs found matching your criteria. Try different keywords or location.",
+                "search_timestamp": datetime.now().isoformat()
+            })
+        
+        # Format response
+        job_results = [
+            {
+                "title": job.title,
+                "company": job.company,
+                "location": job.location,
+                "platform": job.platform,
+                "salary": job.salary,
+                "url": job.url,
+                "description": job.description[:300] + "..." if len(job.description) > 300 else job.description,
+                "posted_date": job.posted_date
+            }
+            for job in jobs
+        ]
+        
+        response_data = {
+            "jobs": job_results,
+            "total_found": len(jobs),
+            "search_parameters": {
+                "keywords": keywords,
+                "location": location,
+                "limit": job_limit
+            },
+            "search_timestamp": datetime.now().isoformat()
+        }
+        
+        logger.info(f"Manual job search completed successfully. Found {len(jobs)} jobs.")
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error during manual job search: {str(e)}")
+        return jsonify({"error": f"Job search failed: {str(e)}"}), 500
+
 @app.route('/api/download-report', methods=['POST'])
 def download_report():
     """Download analysis report as text file"""
@@ -164,6 +237,61 @@ def download_report():
     except Exception as e:
         logger.error(f"Error generating report download: {str(e)}")
         return jsonify({"error": "Failed to generate report"}), 500
+
+@app.route('/api/download-jobs', methods=['POST'])
+def download_jobs():
+    """New endpoint to download job search results as text file"""
+    try:
+        data = request.get_json()
+        jobs_data = data.get('jobs', [])
+        search_params = data.get('search_parameters', {})
+        
+        if not jobs_data:
+            return jsonify({"error": "No jobs data provided"}), 400
+        
+        # Generate job search report
+        report_content = f"""
+JOB SEARCH RESULTS
+Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+=== SEARCH PARAMETERS ===
+Keywords: {search_params.get('keywords', 'N/A')}
+Location: {search_params.get('location', 'Any')}
+Results Found: {len(jobs_data)}
+
+=== JOB LISTINGS ===
+"""
+        
+        for i, job in enumerate(jobs_data, 1):
+            report_content += f"""
+{i}. {job['title']} at {job['company']}
+   Platform: {job['platform']}
+   Location: {job['location']}
+   Salary: {job['salary'] or 'Not specified'}
+   Posted: {job['posted_date'] or 'Not specified'}
+   URL: {job['url']}
+   
+   Description:
+   {job['description']}
+   
+   {'='*50}
+"""
+        
+        # Create a temporary file
+        temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
+        temp_file.write(report_content)
+        temp_file.close()
+        
+        return send_file(
+            temp_file.name,
+            as_attachment=True,
+            download_name=f'job_search_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt',
+            mimetype='text/plain'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating job search download: {str(e)}")
+        return jsonify({"error": "Failed to generate job search report"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
